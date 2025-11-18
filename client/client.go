@@ -1,4 +1,5 @@
 package main
+
 import (
 	"context"
 	"crypto/tls"
@@ -7,13 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
 	"github.com/joho/godotenv"
 	"go.temporal.io/sdk/client"
 )
 
 func main() {
 	var envPath string
-	if _, err := os.Stat(".env"); err == nil {	
+	if _, err := os.Stat(".env"); err == nil {
 		envPath = ".env"
 	} else {
 		envPath = filepath.Join("..", ".env")
@@ -57,7 +59,7 @@ func main() {
 		TaskQueue: taskQueue,
 	}
 
-	name := "Tianfan" 
+	name := "xxx-xxx"
 	we, err := c.ExecuteWorkflow(ctx, wo, "HelloWorkflow", name)
 	if err != nil {
 		log.Fatalf("Unable to start workflow: %v", err)

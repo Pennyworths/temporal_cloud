@@ -1,5 +1,3 @@
-# Complete Deployment Steps Guide
-
 ## Prerequisites
 1. **AWS CLI configured**
    ```bash
@@ -16,18 +14,6 @@
 
 4. **Terraform 1.5+ installed**
 
-5. **Prepare `.env` file** (in project root directory)
-   ```bash
-   # Create .env file
-   cat > .env << EOF
-   PROJECT_NAME=temporal-demo
-   AWS_REGION=us-east-1
-   TEMPORAL_ADDRESS=your-namespace.xyz.temporal.io:7233
-   TEMPORAL_NAMESPACE=your-namespace
-   TEMPORAL_API_KEY=your-api-key
-   TEMPORAL_TASK_QUEUE=temporal-demo-queue
-   EOF
-   ```
 
 ---
 
@@ -43,7 +29,15 @@ go mod tidy
 
 ### Step 2: create a NameSpace on temporal cloud , get API KEY and region endpoint 
 on temporal cloud.  Store environment Variable in .env
-
+   ```bash
+   # Create .env file
+   PROJECT_NAME=temporal-demo
+   AWS_REGION=us-east-1
+   TEMPORAL_ADDRESS=your-namespace.xyz.temporal.io:7233
+   TEMPORAL_NAMESPACE=your-namespace
+   TEMPORAL_API_KEY=your-api-key
+   TEMPORAL_TASK_QUEUE=temporal-demo-queue
+   ```
 
 ### Step 3: Create AWS infrastructure with Terraform
 
@@ -116,13 +110,9 @@ go run clent.go
 
 - **View in Temporal Web UI**: Log in to Temporal Cloud and check workflow execution history
 - **Check CloudWatch logs**: Confirm worker is running properly
-
 ---
-
 
 ```
-
----
 
 ## Important Notes
 
