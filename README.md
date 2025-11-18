@@ -26,7 +26,7 @@ go mod tidy
 ```
 
 ### Step 2: create a NameSpace on temporal cloud , get API KEY and region endpoint 
-on temporal cloud.  Store environment Variable in .env
+###on temporal cloud.  Store environment Variable in .env
    ```bash
    # Create .env file
    PROJECT_NAME=temporal-demo
@@ -108,6 +108,7 @@ go run clent.go
 
 - **View in Temporal Web UI**: Log in to Temporal Cloud and check workflow execution history
 - **Check CloudWatch logs**: Confirm worker is running properly
+- **manually create workflow**: create a workflow on cloud and see result
 ---
 
 ```
