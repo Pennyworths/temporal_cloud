@@ -119,45 +119,6 @@ go run clent.go
 
 ---
 
-## Redeployment Steps (if resources already exist)
-
-### Scenario A: Update code only, no infrastructure changes
-
-```bash
-# 1. After updating code, rebuild and push image
-cd worker
-./build-and-push.sh latest
-
-# 2. Force ECS service to use new image (via AWS Console or CLI)
-aws ecs update-service \
-  --cluster temporal-demo-worker-cluster \
-  --service temporal-demo-worker-svc \
-  --force-new-deployment \
-  --region us-east-1
-```
-
-### Scenario B: Complete redeployment (destroy and rebuild)
-
-```bash
-# 1. Destroy all resources
-cd terraform
-./run-terraform.sh destroy
-# Confirm destruction (type yes)
-
-# 2. Recreate all resources
-./run-terraform.sh apply
-
-# 3. Build and push image
-cd ../worker
-./build-and-push.sh latest
-
-# 4. Wait for ECS service to start, then test
-cd ../client
-go run client
-```
-
----
-
 
 ```
 
