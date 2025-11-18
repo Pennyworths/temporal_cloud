@@ -7,17 +7,13 @@
    export AWS_SECRET_ACCESS_KEY=your-secret
    export AWS_DEFAULT_REGION=us-east-1
    ```
-
 2. **Docker installed and running**
 
 3. **Go 1.23+ installed**
 
 4. **Terraform 1.5+ installed**
 
-
 ---
-
-## Complete Deployment Steps
 
 ### Step 1: Initialize Go modules (if needed)
 
