@@ -26,10 +26,14 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 # ECR repository name (should match what's in Terraform)
 ECR_REPO_NAME="${PROJECT_NAME}-worker"
 
+# Use terraform profile if available, otherwise use default
+AWS_PROFILE="${AWS_PROFILE:-terraform}"
+
 # Get AWS account ID
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile "${AWS_PROFILE}" --query Account --output text)
 if [ -z "$AWS_ACCOUNT_ID" ]; then
   echo "❌ Failed to get AWS account ID. Make sure AWS CLI is configured."
+  echo "   Try: aws sso login --profile terraform"
   exit 1
 fi
 
@@ -50,7 +54,7 @@ docker tag "${ECR_REPO_NAME}:${IMAGE_TAG}" "${ECR_REPO_URL}:${IMAGE_TAG}"
 
 echo ""
 echo "🔐 Logging in to ECR..."
-aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ECR_REPO_URL}"
+aws ecr get-login-password --profile "${AWS_PROFILE}" --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ECR_REPO_URL}"
 
 echo ""
 echo "📤 Pushing image to ECR..."
