@@ -1,10 +1,10 @@
-// worker/workflow.go（示例）
 package main
 
 import (
 	"fmt"
 
 	"go.temporal.io/sdk/workflow"
+	"temporal-cloud/shared"
 )
 
 func HelloWorkflow(ctx workflow.Context, name string) (string, error) {

@@ -1,10 +1,13 @@
 module temporal-worker
 
-go 1.23.0
+go 1.25.3
+
+replace temporal-cloud => ../
 
 require (
 	github.com/joho/godotenv v1.5.1
 	go.temporal.io/sdk v1.37.0
+	temporal-cloud v0.0.0-00010101000000-000000000000
 )
 
 require (
