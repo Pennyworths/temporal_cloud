@@ -21,7 +21,7 @@
 
 ```bash
 # In project root directory
-cd /Users/yangtianfan/Desktop/temporal_cloud
+cd your_workspace/temporal_cloud
 go mod tidy
 ```
 
