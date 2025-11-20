@@ -7,11 +7,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
+
+	"temporal-cloud/shared"
 
 	"github.com/joho/godotenv"
 	"go.temporal.io/sdk/client"
-	"temporal-cloud/shared"
 )
 
 func main() {
@@ -21,7 +23,7 @@ func main() {
 	defer c.Close()
 
 	if len(os.Args) < 2 {
-		log.Fatalf("Usage: go run client.go <start|signal|get|status|schedule> [args...]")
+		log.Fatalf("Usage: go run client.go <start|signal|get|status|schedule|delay> [args...]")
 	}
 
 	command := os.Args[1]
@@ -37,8 +39,10 @@ func main() {
 		getWorkflowStatus(c)
 	case "schedule":
 		handleScheduleCommand(c)
+	case "delay":
+		startDelayWorkflow(c)
 	default:
-		log.Fatalf("Unknown command %q. Use: start | signal | get | status | schedule", command)
+		log.Fatalf("Unknown command %q. Use: start | signal | get | status | schedule | delay", command)
 	}
 }
 
@@ -136,6 +140,66 @@ func signalWorkflow(c client.Client) {
 	log.Printf("📨 Sent Signal '%s' to workflow '%s' with value: %s\n",
 		shared.SignalUpdateName, workflowID, newName)
 	log.Printf("💡 Use 'go run client.go get %s' to get the workflow result\n", workflowID)
+}
+
+func startDelayWorkflow(c client.Client) {
+	// go run client.go delay <minutes> [name]
+	if len(os.Args) < 3 {
+		log.Fatalf("Usage: go run client.go delay <minutes> [name]")
+	}
+
+	minutesStr := os.Args[2]
+	minutes, err := strconv.Atoi(minutesStr)
+	if err != nil || minutes <= 0 {
+		log.Fatalf("Invalid minutes: %s. Must be a positive integer", minutesStr)
+	}
+
+	taskQueue := os.Getenv("TEMPORAL_TASK_QUEUE")
+	if taskQueue == "" {
+		log.Fatal("TEMPORAL_TASK_QUEUE is not set")
+	}
+
+	var name string
+	if len(os.Args) >= 4 {
+		name = os.Args[3]
+	} else {
+		name = shared.DefaultWorkflowName
+	}
+
+	workflowID := fmt.Sprintf("%s-delay-%d", shared.WorkflowIDPrefix, time.Now().Unix())
+
+	wo := client.StartWorkflowOptions{
+		ID:        workflowID,
+		TaskQueue: taskQueue,
+		// Set a long execution timeout so workflow can wait for delay and signal
+		WorkflowExecutionTimeout: shared.DefaultWorkflowTimeout,
+		WorkflowRunTimeout:       shared.DefaultWorkflowRunTimeout,
+	}
+
+	// DelayWorkflowInput describes the payload for DelayWorkflow
+	type DelayWorkflowInput struct {
+		DelayMinutes int
+		Name         string
+	}
+	input := DelayWorkflowInput{
+		DelayMinutes: minutes,
+		Name:         name,
+	}
+
+	log.Printf("⏰ Starting delay workflow: %s\n", workflowID)
+	log.Printf("   Will wait %d minute(s), then wait for signal...\n", minutes)
+
+	run, err := c.ExecuteWorkflow(ctx(), wo, shared.DelayWorkflowName, input)
+	if err != nil {
+		log.Fatalf("Unable to start delay workflow: %v", err)
+	}
+
+	log.Printf("Workflow started. WorkflowID=%s RunID=%s\n", run.GetID(), run.GetRunID())
+	log.Printf("✅ Workflow will wait %d minute(s), then wait for signal...\n", minutes)
+	log.Printf("\n👉 Next steps:\n")
+	log.Printf("   1. Wait %d minute(s) for the delay to complete\n", minutes)
+	log.Printf("   2. Send signal:  go run client.go signal %s NEW_NAME\n", workflowID)
+	log.Printf("   3. Get result:   go run client.go get %s\n", workflowID)
 }
 
 func getWorkflowResult(c client.Client) {
@@ -241,13 +305,20 @@ func createSchedule(sc client.ScheduleClient) {
 	}
 
 	// 2. Workflow action to execute
+	// ScheduleWorkflow runs automatically and completes immediately (cron-style task)
+	type ScheduleWorkflowInput struct {
+		Name string
+	}
+	workflowInput := ScheduleWorkflowInput{
+		Name: name,
+	}
+
 	action := &client.ScheduleWorkflowAction{
 		ID: workflowID,
-		// If your worker registers the function directly, you can use: Workflow: HelloWorkflow
-		// Currently using string type to match ExecuteWorkflow usage
-		Workflow:  shared.WorkflowName,
+		// Run ScheduleWorkflow; it completes automatically without waiting for a signal
+		Workflow:  shared.ScheduleWorkflowName,
 		TaskQueue: taskQueue,
-		Args:      []interface{}{name},
+		Args:      []interface{}{workflowInput},
 	}
 
 	// 3. Complete ScheduleOptions

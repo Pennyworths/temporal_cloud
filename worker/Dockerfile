@@ -24,7 +24,7 @@
     # Copy compiled binary from builder stage
     COPY --from=builder /app/worker .
     
-    # If you need CA certs for TLS (Temporal Cloud)，可以加上这一句：
+    # If you need CA certs for TLS (Temporal Cloud), add the line below:
     # RUN apk add --no-cache ca-certificates
     
     # Entry point: start the Temporal worker
