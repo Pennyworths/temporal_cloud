@@ -149,6 +149,12 @@ result := fmt.Sprintf("Hello, %s from Temporal Worker on AWS!", newName)
 return result, nil
 ```
 
+And the CLI sends the signal with:
+
+```go
+err := c.SignalWorkflow(ctx(), workflowID, "", shared.SignalUpdateName, newName)
+```
+
 ### Task Queue
 
 **Task Queue** is the bridge between the client (that schedules work) and the worker (that executes it). In this project:
@@ -197,6 +203,30 @@ Automatically triggers every hour
 Automatically executes Workflow
     ↓
 Automatically completes (no manual operation needed)
+```
+
+Behind the scenes, the CLI builds a `ScheduleWorkflowAction` and Temporal Cloud executes the registered workflow:
+
+```go
+action := &client.ScheduleWorkflowAction{
+    ID:        workflowID,
+    Workflow:  shared.ScheduleWorkflowName,
+    TaskQueue: taskQueue,
+    Args:      []interface{}{ScheduleWorkflowInput{Name: name}},
+}
+```
+
+And the workflow itself resides in `worker/workflow.go`:
+
+```go
+func ScheduleWorkflow(ctx workflow.Context, input ScheduleWorkflowInput) (string, error) {
+    name := input.Name
+    if name == "" {
+        name = shared.DefaultWorkflowName
+    }
+    result := fmt.Sprintf("Hello, %s from Temporal Worker on AWS!", name)
+    return result, nil
+}
 ```
 
 #### Example:
