@@ -11,6 +11,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"go.temporal.io/sdk/client"
+	"temporal-cloud/shared"
 )
 
 func main() {
@@ -83,7 +84,7 @@ func ctx() context.Context {
 	return context.Background()
 }
 
-// ----------------- 基本 Workflow 操作 -----------------
+// ----------------- Basic Workflow Operations -----------------
 
 func startWorkflow(c client.Client) {
 	taskQueue := os.Getenv("TEMPORAL_TASK_QUEUE")
@@ -91,21 +92,21 @@ func startWorkflow(c client.Client) {
 		log.Fatal("TEMPORAL_TASK_QUEUE is not set")
 	}
 
-	workflowID := fmt.Sprintf("hello-workflow-%d", time.Now().Unix())
+	workflowID := fmt.Sprintf("%s%d", shared.WorkflowIDPrefix, time.Now().Unix())
 
 	wo := client.StartWorkflowOptions{
 		ID:        workflowID,
 		TaskQueue: taskQueue,
 		// Set a long execution timeout so workflow can wait for signal
-		WorkflowExecutionTimeout: 24 * time.Hour,
-		WorkflowRunTimeout:       24 * time.Hour,
+		WorkflowExecutionTimeout: shared.DefaultWorkflowTimeout,
+		WorkflowRunTimeout:       shared.DefaultWorkflowRunTimeout,
 	}
 
-	name := "xxx-xxx"
+	name := shared.DefaultWorkflowName
 
 	log.Printf("🚀 Starting workflow: %s\n", workflowID)
 
-	run, err := c.ExecuteWorkflow(ctx(), wo, "HelloWorkflow", name)
+	run, err := c.ExecuteWorkflow(ctx(), wo, shared.WorkflowName, name)
 	if err != nil {
 		log.Fatalf("Unable to start workflow: %v", err)
 	}
@@ -127,15 +128,13 @@ func signalWorkflow(c client.Client) {
 	workflowID := os.Args[2]
 	newName := os.Args[3]
 
-	signalName := "update-name"
-
-	err := c.SignalWorkflow(ctx(), workflowID, "", signalName, newName)
+	err := c.SignalWorkflow(ctx(), workflowID, "", shared.SignalUpdateName, newName)
 	if err != nil {
 		log.Fatalf("Failed to send signal: %v", err)
 	}
 
 	log.Printf("📨 Sent Signal '%s' to workflow '%s' with value: %s\n",
-		signalName, workflowID, newName)
+		shared.SignalUpdateName, workflowID, newName)
 	log.Printf("💡 Use 'go run client.go get %s' to get the workflow result\n", workflowID)
 }
 
@@ -184,7 +183,7 @@ func getWorkflowStatus(c client.Client) {
 	}
 }
 
-// ----------------- Schedule 命令入口 -----------------
+// ----------------- Schedule Command Entry Point -----------------
 
 func handleScheduleCommand(c client.Client) {
 	if len(os.Args) < 3 {
@@ -231,32 +230,32 @@ func createSchedule(sc client.ScheduleClient) {
 	if len(os.Args) >= 6 {
 		workflowID = os.Args[5]
 	} else {
-		workflowID = fmt.Sprintf("hello-workflow-%d", time.Now().Unix())
+		workflowID = fmt.Sprintf("%s%d", shared.WorkflowIDPrefix, time.Now().Unix())
 	}
 
-	name := "xxx-xxx"
+	name := shared.DefaultWorkflowName
 
-	// 1. Schedule 触发时间规则（Cron）
+	// 1. Schedule trigger time rules (Cron)
 	spec := client.ScheduleSpec{
 		CronExpressions: []string{cronExpr},
 	}
 
-	// 2. 要执行的 Workflow 动作
+	// 2. Workflow action to execute
 	action := &client.ScheduleWorkflowAction{
 		ID: workflowID,
-		// 如果你的 worker 是用函数注册的，可以改成 Workflow: HelloWorkflow
-		// 目前先用字符串类型，和 ExecuteWorkflow 那里保持一致
-		Workflow:  "HelloWorkflow",
+		// If your worker registers the function directly, you can use: Workflow: HelloWorkflow
+		// Currently using string type to match ExecuteWorkflow usage
+		Workflow:  shared.WorkflowName,
 		TaskQueue: taskQueue,
 		Args:      []interface{}{name},
 	}
 
-	// 3. 真正的 ScheduleOptions
+	// 3. Complete ScheduleOptions
 	opts := client.ScheduleOptions{
 		ID:     scheduleID,
 		Spec:   spec,
 		Action: action,
-		// 需要可以再加 State / Policies / Memo / SearchAttributes
+		// Can add State / Policies / Memo / SearchAttributes if needed
 	}
 
 	handle, err := sc.Create(ctx(), opts)
@@ -268,7 +267,7 @@ func createSchedule(sc client.ScheduleClient) {
 	log.Printf("   Cron: %s\n", cronExpr)
 	log.Printf("   WorkflowID: %s\n", workflowID)
 	log.Printf("💡 Use 'go run client.go schedule list' to see all schedules\n")
-	_ = handle // 目前只是创建，不进一步使用 handle
+	_ = handle // Currently only creating, not using handle further
 }
 
 func listSchedules(sc client.ScheduleClient) {
@@ -285,7 +284,7 @@ func listSchedules(sc client.ScheduleClient) {
 			log.Fatalf("Failed to get schedule: %v", err)
 		}
 		count++
-		// 这里只简单打印 ID，状态我们用 Describe 再看
+		// Only printing ID here, use Describe to see detailed status
 		log.Printf("   %d. ID: %s\n", count, entry.ID)
 	}
 
