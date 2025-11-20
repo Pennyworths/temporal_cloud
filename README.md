@@ -105,6 +105,8 @@ In short: **Workflow = conductor**, **Activity = musicians**, **Signal = request
 ```
 Workflow starts
     ↓
+Workflow task is placed on the Task Queue (worker polls and picks it up)
+    ↓
 Wait for Signal (blocked)
     ↓
 External sends Signal
@@ -137,6 +139,28 @@ External system sends Signal (client CLI, API, etc.)
     ↓
 Workflow receives Signal → invokes Activities → completes
 ```
+
+Under the hood the workflow code in `worker/workflow.go` is:
+
+```go
+signalChan := workflow.GetSignalChannel(ctx, shared.SignalUpdateName)
+signalChan.Receive(ctx, &newName)
+result := fmt.Sprintf("Hello, %s from Temporal Worker on AWS!", newName)
+return result, nil
+```
+
+### Task Queue
+
+**Task Queue** is the bridge between the client (that schedules work) and the worker (that executes it). In this project:
+
+- The CLI reads `TEMPORAL_TASK_QUEUE` from `.env` and sets it in `client.StartWorkflowOptions` or `ScheduleWorkflowAction`. Every workflow run is therefore enqueued on the same Task Queue.
+- `worker/main.go` creates a worker with the identical Task Queue name:
+  ```go
+  w := worker.New(c, taskQueue, worker.Options{})
+  ```
+  That worker polls the queue, picks up workflow or activity tasks, and executes the registered handlers.
+
+Temporal ensures horizontal scalability: you can run multiple workers pointing to the same Task Queue, and tasks will be load-balanced across them automatically.
 
 #### Example:
 ```bash
@@ -205,6 +229,36 @@ go run client.go schedule create hourly-task "0 * * * *"
 5. **Temporal Cloud account**
    - Create a Namespace on [Temporal Cloud](https://cloud.temporal.io)
    - Get API Key and Endpoint
+
+### How the code connects to Temporal Cloud
+
+Both the CLI and the worker read the connection settings from `.env` and build identical Temporal clients:
+
+```go
+clientOptions := client.Options{
+    HostPort:  os.Getenv("TEMPORAL_ADDRESS"),
+    Namespace: os.Getenv("TEMPORAL_NAMESPACE"),
+    ConnectionOptions: client.ConnectionOptions{
+        TLS: &tls.Config{},
+    },
+    Credentials: client.NewAPIKeyStaticCredentials(os.Getenv("TEMPORAL_API_KEY")),
+}
+
+c, err := client.Dial(clientOptions)
+```
+
+Once the client is ready, the worker registers workflows/activities on the shared Task Queue:
+
+```go
+w := worker.New(c, taskQueue, worker.Options{})
+w.RegisterWorkflow(HelloWorkflow)
+w.RegisterWorkflow(ScheduleWorkflow)
+w.RegisterWorkflow(DelayWorkflow)
+w.RegisterActivity(SayHello)
+w.Run(worker.InterruptCh())
+```
+
+The CLI uses the same client handle when it executes `ExecuteWorkflow`, `SignalWorkflow`, `GetWorkflow`, or any of the schedule operations, so every command is routed through Temporal Cloud using the credentials above.
 
 ---
 
@@ -305,6 +359,12 @@ If already deployed to ECS, ensure the ECS service is running.
 ## Usage Guide
 
 ### Basic Workflow Operations
+
+Every CLI command maps directly to a Temporal SDK call. For example:
+
+- `go run client.go start` → `c.ExecuteWorkflow(ctx(), startOptions, shared.WorkflowName, shared.DefaultWorkflowName)`
+- `go run client.go signal <WorkflowID> <NewName>` → `c.SignalWorkflow(ctx(), workflowID, "", shared.SignalUpdateName, newName)`
+- `go run client.go get <WorkflowID>` → `c.GetWorkflow(ctx(), workflowID, "").Get(ctx(), &result)`
 
 #### 1. Start Workflow
 
@@ -539,6 +599,23 @@ go run client.go schedule delete hourly-task
 ### Delay Feature
 
 The delay feature allows you to start a workflow after a specified time and wait for a signal.
+
+It sends a structured payload into `DelayWorkflow`:
+
+```go
+type DelayWorkflowInput struct {
+    DelayMinutes int
+    Name         string
+}
+```
+
+Workflow logic:
+
+```go
+workflow.Sleep(ctx, time.Duration(delayMinutes)*time.Minute)
+signalChan := workflow.GetSignalChannel(ctx, shared.SignalUpdateName)
+signalChan.Receive(ctx, &newName)
+```
 
 ```bash
 go run client.go delay <minutes> [name]
