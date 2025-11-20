@@ -170,7 +170,12 @@ go run client.go start
 
 # Send signal
 go run client.go signal hello-workflow-123 Alice
-# Workflow continues execution after receiving signal
+
+# Fetch result
+go run client.go get hello-workflow-123
+# Output:
+# ⏳ Waiting for workflow 'hello-workflow-123' to complete...
+# 🎉 Workflow completed. Result: Hello, Alice from Temporal Worker on AWS!
 ```
 
 ### Schedule
