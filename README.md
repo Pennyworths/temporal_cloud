@@ -88,6 +88,14 @@ func SayHello(ctx context.Context, name string) (string, error) {
 
 **Signal** is a mechanism for sending asynchronous messages from external sources to running Workflows.
 
+#### How Workflow, Activity, and Signal Work Together
+
+- **Workflow orchestrates the entire business process.** It determines when to run Activities and when to pause for external input.
+- **Activities perform the actual work.** A workflow calls an activity whenever it needs to execute nondeterministic operations (API calls, DB writes, etc.).
+- **Signals feed the workflow with live updates.** While a workflow is waiting on `workflow.GetSignalChannel`, external systems can use the client CLI (or API) to deliver new data that unblocks the workflow and lets it proceed.
+
+In short: **Workflow = conductor**, **Activity = musicians**, **Signal = request from the audience**. The workflow coordinates, activities do the heavy lifting, and signals allow outside systems to nudge the workflow mid-flight.
+
 #### Use Cases:
 - 📨 **External Trigger**: Allow Workflow to respond to external events
 - 🔄 **State Update**: Update Workflow execution parameters
@@ -103,7 +111,31 @@ External sends Signal
     ↓
 Workflow receives Signal
     ↓
+Workflow invokes Activities (e.g., SayHello) to perform real work
+    ↓
 Continue execution and complete
+```
+
+#### Workflow Execution Modes
+
+1. **Auto-complete Workflow (no signal required)**
+```
+Workflow starts (autoStart = true, e.g., ScheduleWorkflow)
+    ↓
+Workflow invokes Activities directly
+    ↓
+Workflow completes immediately without waiting for a Signal
+```
+
+2. **Signal-driven Workflow**
+```
+Workflow starts (autoStart = false, e.g., HelloWorkflow via CLI)
+    ↓
+Workflow pauses and waits for Signal
+    ↓
+External system sends Signal (client CLI, API, etc.)
+    ↓
+Workflow receives Signal → invokes Activities → completes
 ```
 
 #### Example:
