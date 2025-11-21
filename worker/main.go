@@ -61,6 +61,8 @@ func main() {
 
 	w := worker.New(c, taskQueue, worker.Options{})
 	w.RegisterWorkflow(HelloWorkflow)
+	w.RegisterWorkflow(ScheduleWorkflow)
+	w.RegisterWorkflow(DelayWorkflow)
 	w.RegisterActivity(SayHello)
 
 	err = w.Run(worker.InterruptCh())
