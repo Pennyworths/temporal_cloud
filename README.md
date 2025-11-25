@@ -303,7 +303,7 @@ The CLI uses the same client handle when it executes `ExecuteWorkflow`, `SignalW
 
 ```bash
 # In project root directory
-cd temporal_cloud
+cd your_workspace/temporal_cloud
 go mod tidy
 ```
 
