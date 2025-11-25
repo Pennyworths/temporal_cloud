@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 	"go.temporal.io/sdk/client"
@@ -12,13 +13,22 @@ import (
 
 func main() {
 	// Load environment variables (optional - ECS provides env vars directly)
-	// Try to load .env file if it exists, but don't fail if it doesn't
+	// Try to load .env file from current directory or parent directory
+	var envPath string
 	if _, err := os.Stat(".env"); err == nil {
-		if err := godotenv.Load(".env"); err != nil {
-			log.Printf("Warning: Failed to load .env file: %v", err)
-		}
+		envPath = ".env"
+	} else if _, err := os.Stat("../.env"); err == nil {
+		envPath = filepath.Join("..", ".env")
 	} else {
-		log.Println("No .env file found, using environment variables from ECS")
+		log.Println("No .env file found, using environment variables only")
+	}
+
+	if envPath != "" {
+		if err := godotenv.Load(envPath); err != nil {
+			log.Printf("Warning: Failed to load .env file: %v", err)
+		} else {
+			log.Printf("Loaded .env from %s", envPath)
+		}
 	}
 
 	addr := os.Getenv("TEMPORAL_ADDRESS")
@@ -51,6 +61,8 @@ func main() {
 
 	w := worker.New(c, taskQueue, worker.Options{})
 	w.RegisterWorkflow(HelloWorkflow)
+	w.RegisterWorkflow(ScheduleWorkflow)
+	w.RegisterWorkflow(DelayWorkflow)
 	w.RegisterActivity(SayHello)
 
 	err = w.Run(worker.InterruptCh())
